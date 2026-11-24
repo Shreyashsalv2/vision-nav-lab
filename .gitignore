@@ -1,0 +1,11 @@
+build/
+data/
+__pycache__/
+.pytest_cache/
+*.so
+.env*
+.vercel
+ros2/build/
+ros2/install/
+ros2/log/
+.DS_Store
