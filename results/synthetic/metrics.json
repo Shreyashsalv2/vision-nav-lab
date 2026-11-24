@@ -1,0 +1,17 @@
+{
+  "frames": 300,
+  "path_length_m": 89.77438942075744,
+  "ate_rmse_m": 0.24888295045387712,
+  "ate_max_m": 0.49162978210944175,
+  "rpe1_trans_rmse_m": 0.0323525792020309,
+  "rpe1_rot_rmse_deg": 0.12700107685732015,
+  "rpe10_trans_rmse_m": 0.09892601595217784,
+  "rpe10_rot_rmse_deg": 0.4264082903986718,
+  "final_drift_pct": 1.8912278118740162,
+  "dataset": "synthetic",
+  "fallback_rate": 0.0,
+  "mean_tracked_features": 469.561872909699,
+  "mean_inliers": 101.58193979933111,
+  "ms_per_frame": 70.1473005799998,
+  "frames_backend": "cpp"
+}
