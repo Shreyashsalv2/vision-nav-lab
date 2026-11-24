@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  core:
+    name: C++ + Python + accuracy gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Build C++ library, CLI, GoogleTest tests and Python module
+        run: PYTHON=python scripts/build_cpp.sh
+      - name: C++ tests
+        run: ctest --test-dir build/cpp --output-on-failure
+      - name: Python tests
+        run: pytest -q
+      - name: Full sequence with accuracy gate
+        run: |
+          python scripts/make_synthetic.py --out data/synthetic
+          python scripts/run_vo.py --dataset synthetic --path data/synthetic --out ci-results --max-ate 0.5 --max-drift 3.5
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vo-results
+          path: ci-results/
+
+  ros2:
+    name: ROS2 Humble build, node test, smoke test
+    runs-on: ubuntu-latest
+    container: ros:humble-ros-base-jammy
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends python3-opencv python3-numpy python3-pytest \
+            python3-colcon-common-extensions ros-humble-cv-bridge
+      - name: Build vnav_ros
+        run: |
+          source /opt/ros/humble/setup.bash
+          cd ros2 && colcon build --packages-select vnav_ros
+      - name: Node test (in-process playback)
+        run: |
+          source /opt/ros/humble/setup.bash && source ros2/install/setup.bash
+          export PYTHONPATH="$GITHUB_WORKSPACE:$PYTHONPATH"
+          cd ros2 && colcon test --packages-select vnav_ros --event-handlers console_direct+
+          colcon test-result --verbose
+      - name: Smoke test with ros2 run
+        run: |
+          source /opt/ros/humble/setup.bash && source ros2/install/setup.bash
+          export PYTHONPATH="$GITHUB_WORKSPACE:$PYTHONPATH"
+          python3 scripts/make_synthetic.py --frames 60 --out /tmp/syn
+          ros2 run vnav_ros vo_node --ros-args -p sequence_dir:=/tmp/syn -p rate_hz:=5.0 &
+          sleep 5
+          timeout 30 ros2 topic echo --once /vnav/odom > /tmp/odom.txt
+          head -25 /tmp/odom.txt
+          grep -q "child_frame_id: base_link" /tmp/odom.txt
+          kill %1 || true
